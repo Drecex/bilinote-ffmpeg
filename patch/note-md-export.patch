@@ -1,0 +1,17 @@
+--- a/backend/app/services/note.py
++++ b/backend/app/services/note.py
+@@ -225,6 +225,14 @@
+ 
+             markdown = prepend_source_link(markdown, str(video_url))
+ 
++            # 把最终版本（截图/链接已替换、来源链接已加）回写 md 缓存。
++            # 否则 note_results/<task>_markdown.md 里只留下 *Screenshot-[mm:ss]* 占位符，
++            # 与界面/JSON 里的成品不一致。
++            try:
++                markdown_cache_file.write_text(markdown, encoding="utf-8")
++            except OSError as exc:
++                logger.warning(f"回写 markdown 缓存失败（不影响笔记生成）: {exc}")
++
+             # 5. 保存记录到数据库
+             self._update_status(task_id, TaskStatus.SAVING)
+             self._save_metadata(video_id=audio_meta.video_id, platform=platform, task_id=task_id)

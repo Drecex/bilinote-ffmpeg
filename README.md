@@ -65,12 +65,14 @@ Install.cmd -NoRestart -SkipHealthCheck
 
 ## 路线二：源码补丁
 
-`patch/ffmpeg_helper.py` 是打过补丁的完整文件，`patch/ffmpeg-helper-autodetect.patch` 是对应的 unified diff。
+`patch/ffmpeg_helper.py` 是打过补丁的完整文件，`patch/ffmpeg-helper-autodetect.patch` 是对应的 unified diff；
+`patch/note-md-export.patch` 顺手修了 `.md` 导出不含截图的问题。
 
 ```bash
 git clone https://github.com/JefferyHcool/BiliNote.git
 cd BiliNote
 git apply /path/to/ffmpeg-helper-autodetect.patch
+git apply /path/to/note-md-export.patch
 ```
 
 补丁内容：给 `backend/ffmpeg_helper.py` 增加 `_bundled_ffmpeg_dirs()`，在检查 `FFMPEG_BIN_PATH`
