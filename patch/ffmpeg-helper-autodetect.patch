@@ -1,0 +1,70 @@
+--- a/backend/ffmpeg_helper.py
++++ b/backend/ffmpeg_helper.py
+@@ -36,9 +36,35 @@
+ 
+ 
+ _load_dotenv_from_multiple_paths()
++
++
++def _bundled_ffmpeg_dirs():
++    """返回随包分发的 ffmpeg 候选目录（按优先级）。
++
++    官方安装包本身不含 ffmpeg，这里支持把 ffmpeg/bin 一起打进安装目录，
++    这样即使用户 .env 里没写 FFMPEG_BIN_PATH 也能开箱可用：
++      1. 源码运行：backend/../ffmpeg/bin
++      2. PyInstaller onedir：<EXE 目录>/ffmpeg/bin（推荐的分发位置）
++      3. PyInstaller onedir：<EXE 目录>/_internal/ffmpeg/bin
++      4. PyInstaller onefile：<_MEIPASS>/ffmpeg/bin
++    """
++    dirs = []
++    script_dir = os.path.dirname(os.path.abspath(__file__))
++    dirs.append(os.path.normpath(os.path.join(script_dir, '..', 'ffmpeg', 'bin')))
++    if getattr(sys, 'frozen', False):
++        exe_dir = os.path.dirname(sys.executable)
++        dirs.append(os.path.join(exe_dir, 'ffmpeg', 'bin'))
++        dirs.append(os.path.join(exe_dir, '_internal', 'ffmpeg', 'bin'))
++    meipass = getattr(sys, '_MEIPASS', None)
++    if meipass:
++        dirs.append(os.path.join(meipass, 'ffmpeg', 'bin'))
++    return dirs
++
++
+ def check_ffmpeg_exists() -> bool:
+     """
+-    检查 ffmpeg 是否可用。优先使用 FFMPEG_BIN_PATH 环境变量指定的路径。
++    检查 ffmpeg 是否可用。优先使用 FFMPEG_BIN_PATH 环境变量指定的路径，
++    其次使用随包分发的 ffmpeg 目录，最后才扫描系统 PATH。
+     """
+     ffmpeg_bin_path = os.getenv("FFMPEG_BIN_PATH")
+     logger.info(f"FFMPEG_BIN_PATH: {ffmpeg_bin_path}")
+@@ -46,15 +72,21 @@
+         os.environ["PATH"] = ffmpeg_bin_path + os.pathsep + os.environ.get("PATH", "")
+         logger.info(f"使用FFMPEG_BIN_PATH: {ffmpeg_bin_path}")
+     else:
+-        # 遍历系统PATH寻找ffmpeg.exe
+-        system_path = os.environ.get("PATH", "")
+-        path_dirs = system_path.split(os.pathsep)
+-        for path_dir in path_dirs:
+-            ffmpeg_exe_path = os.path.join(path_dir, "ffmpeg.exe")
+-            if os.path.isfile(ffmpeg_exe_path):
+-                os.environ["PATH"] = path_dir + os.pathsep + system_path
+-                logger.info(f"在系统PATH中找到ffmpeg: {path_dir}")
+-                break
++        bundled = next((d for d in _bundled_ffmpeg_dirs() if os.path.isfile(os.path.join(d, "ffmpeg.exe"))), None)
++        if bundled:
++            os.environ["FFMPEG_BIN_PATH"] = bundled
++            os.environ["PATH"] = bundled + os.pathsep + os.environ.get("PATH", "")
++            logger.info(f"使用随包分发的 ffmpeg: {bundled}")
++        else:
++            # 遍历系统PATH寻找ffmpeg.exe
++            system_path = os.environ.get("PATH", "")
++            path_dirs = system_path.split(os.pathsep)
++            for path_dir in path_dirs:
++                ffmpeg_exe_path = os.path.join(path_dir, "ffmpeg.exe")
++                if os.path.isfile(ffmpeg_exe_path):
++                    os.environ["PATH"] = path_dir + os.pathsep + system_path
++                    logger.info(f"在系统PATH中找到ffmpeg: {path_dir}")
++                    break
+     try:
+         subprocess.run(["ffmpeg", "-version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+         logger.info("ffmpeg 已安装")
