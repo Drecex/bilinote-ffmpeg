@@ -69,9 +69,29 @@ if (-not $dir) {
 Log "BiliNote 安装目录: $dir"
 
 # ---------------------------------------------------------------- 2. 校验并部署 ffmpeg
-$ffSrc = Join-Path $PSScriptRoot 'ffmpeg\bin'
-if (-not (Test-Path -LiteralPath (Join-Path $ffSrc 'ffmpeg.exe'))) {
-    Log "脚本目录未内置 ffmpeg，开始下载：$FFmpegUrl"
+function Test-FFmpegDir {
+    param([string]$Dir)
+    if (-not $Dir) { return $false }
+    return ((Test-Path -LiteralPath (Join-Path $Dir 'ffmpeg.exe')) -and (Test-Path -LiteralPath (Join-Path $Dir 'ffprobe.exe')))
+}
+
+$ffSrc = $null
+foreach ($cand in @((Join-Path $PSScriptRoot 'ffmpeg\bin'), (Join-Path $dir 'ffmpeg\bin'), (Join-Path $env:LOCALAPPDATA 'BiliNote\ffmpeg\bin'))) {
+    if (Test-FFmpegDir $cand) {
+        $ffSrc = (Resolve-Path -LiteralPath $cand).Path
+        Log "使用已有的 ffmpeg: $ffSrc"
+        break
+    }
+}
+if (-not $ffSrc) {
+    $sysCmd = Get-Command 'ffmpeg.exe' -ErrorAction SilentlyContinue
+    if ($sysCmd) {
+        $ffSrc = Split-Path -Parent $sysCmd.Source
+        Log "使用系统 PATH 中的 ffmpeg: $ffSrc"
+    }
+}
+if (-not $ffSrc) {
+    Log "本机没有可用 ffmpeg，开始下载：$FFmpegUrl"
     $work = Join-Path $env:TEMP ('bilinote-ffmpeg-' + (Get-Date -Format 'yyyyMMddHHmmss'))
     New-Item -ItemType Directory -Path $work -Force | Out-Null
     $zip = Join-Path $work 'ffmpeg.zip'
@@ -79,7 +99,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $ffSrc 'ffmpeg.exe'))) {
         $ProgressPreference = 'SilentlyContinue'   # 关掉进度条，Invoke-WebRequest 会快很多
         Invoke-WebRequest -Uri $FFmpegUrl -OutFile $zip -UseBasicParsing -TimeoutSec 1800
     } catch {
-        Fail "ffmpeg 下载失败（$($_.Exception.Message)）。可手动下载后解压到 $ffSrc 再重试。"
+        Fail "ffmpeg 下载失败（$($_.Exception.Message)）。可手动下载后解压到 $(Join-Path $PSScriptRoot 'ffmpeg\bin') 再重试。"
     }
     if (-not (Test-Path -LiteralPath $zip) -or (Get-Item $zip).Length -lt 10MB) { Fail 'ffmpeg 压缩包下载不完整。' }
     Log ("下载完成: " + [math]::Round((Get-Item $zip).Length / 1MB, 1) + " MB，正在解压...")
@@ -91,7 +111,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $ffSrc 'ffmpeg.exe'))) {
 }
 foreach ($tool in @('ffmpeg', 'ffprobe')) {
     $exe = Join-Path $ffSrc "$tool.exe"
-    if (-not (Test-Path -LiteralPath $exe)) { Fail "安装包内缺少 $tool.exe" }
+    if (-not (Test-Path -LiteralPath $exe)) { Fail "ffmpeg 目录里缺少 $tool.exe: $ffSrc" }
     $out = & $exe -version 2>&1
     $rc = $LASTEXITCODE
     $ver = [string]($out | Select-Object -First 1)
@@ -102,6 +122,11 @@ foreach ($tool in @('ffmpeg', 'ffprobe')) {
 $ffDst = Join-Path $dir 'ffmpeg\bin'
 New-Item -ItemType Directory -Path $ffDst -Force | Out-Null
 foreach ($exe in Get-ChildItem -LiteralPath $ffSrc -Filter '*.exe') {
+    $target = Join-Path $ffDst $exe.Name
+    if ([System.IO.Path]::GetFullPath($exe.FullName) -eq [System.IO.Path]::GetFullPath($target)) {
+        Log "已在目标位置: $($exe.Name)"
+        continue
+    }
     Copy-Item -LiteralPath $exe.FullName -Destination $ffDst -Force
     Log "已部署: $($exe.Name)"
 }

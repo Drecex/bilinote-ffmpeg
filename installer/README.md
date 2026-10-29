@@ -33,6 +33,17 @@
 | 1 | 失败（看 `install.log`） |
 | 2 | 配置已写入，但 90 秒内后端未报告 ffmpeg=ok，手动重启 BiliNote 即可 |
 
+## ffmpeg 从哪来
+
+按优先级取第一个可用的，全部命中才联网下载：
+
+1. `installer\ffmpeg\bin`（离线包，放进去就不会联网）
+2. BiliNote 安装目录里的 `ffmpeg\bin`（重复运行脚本时直接复用）
+3. 系统 `PATH` 里的 `ffmpeg.exe`
+4. 下载 `-FFmpegUrl`（默认 gyan.dev essentials，约 115 MB）并解压
+
+> 下载慢或断网时，手动把 ffmpeg 解压到 `installer\ffmpeg\bin`（含 `ffmpeg.exe`、`ffprobe.exe`）再运行即可。
+
 ## 离线使用
 
 把解压后的 ffmpeg 目录放成：
