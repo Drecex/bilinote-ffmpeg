@@ -21,7 +21,7 @@
 | 参数 | 说明 |
 | --- | --- |
 | `-InstallDir <path>` | 指定 BiliNote 安装目录（默认自动探测） |
-| `-FFmpegUrl <url>` | 自定义 ffmpeg 压缩包地址（默认 gyan.dev essentials） |
+| `-FFmpegUrl <url[]> ` | 自定义下载地址，可传多个按顺序重试。默认先试本仓库的 Release 附件，失败再回退 gyan.dev |
 | `-NoRestart` | 不重启 BiliNote |
 | `-SkipHealthCheck` | 跳过 `/api/sys_health` 轮询 |
 
@@ -40,7 +40,8 @@
 1. `installer\ffmpeg\bin`（离线包，放进去就不会联网）
 2. BiliNote 安装目录里的 `ffmpeg\bin`（重复运行脚本时直接复用）
 3. 系统 `PATH` 里的 `ffmpeg.exe`
-4. 下载 `-FFmpegUrl`（默认 gyan.dev essentials，约 115 MB）并解压
+4. 下载：先试本仓库 [Release 附件](https://github.com/Drecex/bilinote-ffmpeg/releases)（74 MB），
+   失败再回退 gyan.dev 官方包（约 115 MB），解压后取 `bin`
 
 > 下载慢或断网时，手动把 ffmpeg 解压到 `installer\ffmpeg\bin`（含 `ffmpeg.exe`、`ffprobe.exe`）再运行即可。
 

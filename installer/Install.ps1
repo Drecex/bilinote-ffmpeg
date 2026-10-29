@@ -1,6 +1,9 @@
 ﻿param(
     [string]$InstallDir,
-    [string]$FFmpegUrl = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip',
+    [string[]]$FFmpegUrl = @(
+        'https://github.com/Drecex/bilinote-ffmpeg/releases/download/v1.0.0/ffmpeg-9.0.2-essentials-win64.zip',
+        'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
+    ),
     [switch]$NoRestart,
     [switch]$SkipHealthCheck
 )
@@ -91,17 +94,25 @@ if (-not $ffSrc) {
     }
 }
 if (-not $ffSrc) {
-    Log "本机没有可用 ffmpeg，开始下载：$FFmpegUrl"
+    Log "本机没有可用 ffmpeg，开始下载"
     $work = Join-Path $env:TEMP ('bilinote-ffmpeg-' + (Get-Date -Format 'yyyyMMddHHmmss'))
     New-Item -ItemType Directory -Path $work -Force | Out-Null
     $zip = Join-Path $work 'ffmpeg.zip'
-    try {
-        $ProgressPreference = 'SilentlyContinue'   # 关掉进度条，Invoke-WebRequest 会快很多
-        Invoke-WebRequest -Uri $FFmpegUrl -OutFile $zip -UseBasicParsing -TimeoutSec 1800
-    } catch {
-        Fail "ffmpeg 下载失败（$($_.Exception.Message)）。可手动下载后解压到 $(Join-Path $PSScriptRoot 'ffmpeg\bin') 再重试。"
+    $ProgressPreference = 'SilentlyContinue'   # 关掉进度条，Invoke-WebRequest 会快很多
+    foreach ($url in $FFmpegUrl) {
+        Log "尝试下载: $url"
+        try {
+            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 3600
+            if ((Test-Path -LiteralPath $zip) -and (Get-Item $zip).Length -gt 10MB) { break }
+            Log '下载的文件不完整，换下一个地址' 'WARN'
+        } catch {
+            Log "下载失败：$($_.Exception.Message)" 'WARN'
+        }
+        Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
     }
-    if (-not (Test-Path -LiteralPath $zip) -or (Get-Item $zip).Length -lt 10MB) { Fail 'ffmpeg 压缩包下载不完整。' }
+    if (-not (Test-Path -LiteralPath $zip)) {
+        Fail "所有下载地址都失败了。可手动下载后解压到 $(Join-Path $PSScriptRoot 'ffmpeg\bin') 再重试。"
+    }
     Log ("下载完成: " + [math]::Round((Get-Item $zip).Length / 1MB, 1) + " MB，正在解压...")
     Expand-Archive -LiteralPath $zip -DestinationPath $work -Force
     $found = Get-ChildItem -LiteralPath $work -Recurse -Filter 'ffmpeg.exe' -ErrorAction SilentlyContinue | Select-Object -First 1

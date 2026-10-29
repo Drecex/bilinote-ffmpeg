@@ -37,7 +37,7 @@ ffmpeg_helper - 未找到 ffmpeg，请先安装 ffmpeg 并配置环境变量
 
 1. 定位 BiliNote 安装目录（注册表 → `%LOCALAPPDATA%\BiliNote`），没装则调用同目录的官方安装包；
 2. 找 ffmpeg，按顺序：脚本同目录 `ffmpeg/bin` → BiliNote 安装目录里已有的 `ffmpeg/bin` → 系统 PATH →
-   都没有才**自动下载**（gyan.dev essentials build，约 115 MB）并解压；
+   都没有才自动下载（优先本仓库 [Release 附件](https://github.com/Drecex/bilinote-ffmpeg/releases)，回退 gyan.dev）；
 3. 对 `ffmpeg.exe` / `ffprobe.exe` 做 `-version` 自检，复制到 `<安装目录>\ffmpeg\bin`；
 4. 备份 `_internal\.env`，写入 `FFMPEG_BIN_PATH`（UTF-8 无 BOM），并**回读校验**；
 5. 顺带补 `HF_ENDPOINT=https://hf-mirror.com`（国内拉本地 whisper 模型必需，已存在则不改）；
